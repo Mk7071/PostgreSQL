@@ -1,0 +1,429 @@
+CREATE TABLE departments (
+    id SERIAL PRIMARY KEY,
+    department_name VARCHAR(50) NOT NULL
+);
+
+INSERT INTO departments (department_name) VALUES
+('Sales'),
+('HR'),
+('IT'),
+('Marketing');
+
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    department_id INTEGER REFERENCES departments(id),
+    salary NUMERIC(10, 2) NOT NULL
+);
+
+INSERT INTO employees (name, department_id, salary) VALUES
+('John', 1, 50000),
+('Jane', 2, 60000),
+('Joe', 1, 55000),
+('Jill', 2, 70000),
+('Jack', 3, 40000),
+('Jenny', 3, 45000),
+('Jim', 1, 52000),
+('Jasmine', 3, 48000),
+('Jerry', 2, 62000),
+('Joy', 1, 51000);
+
+select * from employees;
+select * from departments;
+
+select * from employees WHERE name ='Jim';
+SELECT * FROM employees WHERE department_id = 1;
+
+SELECT * FROM employees ORDER BY salary DESC;
+SELECT * FROM employees ORDER BY salary ASC;
+
+SELECT * FROM employees ORDER BY salary DESC LIMIT 5;
+
+SELECT MIN(salary) AS MinSalary, MAX(salary) AS MaxSalary FROM employees;
+
+SELECT COUNT(*) FROM employees WHERE department_id = 2;
+
+SELECT SUM(salary) FROM employees WHERE department_id = 1;
+
+SELECT AVG(salary) FROM employees WHERE department_id = 1;
+
+SELECT * FROM employees WHERE name LIKE 'J%';
+
+SELECT * FROM employees WHERE salary BETWEEN 40000 AND 60000;
+
+SELECT name AS EmployeeName, salary AS EmployeeSalary FROM employees;
+
+SELECT employees.name, departments.department_name
+FROM employees
+INNER JOIN departments ON employees.department_id = departments.id;
+
+SELECT employees.name, departments.department_name
+FROM employees
+LEFT JOIN departments ON employees.department_id = departments.id;
+
+SELECT employees.name, departments.department_name
+FROM employees
+RIGHT JOIN departments ON employees.department_id = departments.id;
+
+SELECT departments, COUNT(*) AS NumberOfEmployees
+FROM employees
+GROUP BY department;
+
+-----------------------------------------------------------------------------------
+
+SELECT * FROM person;
+
+/*creating a CTE derived table and sort by DESC for most frequent*/
+
+WITH all_numbers AS (
+    SELECT "Winning numbers 1" AS number FROM lottery
+    UNION ALL
+    SELECT "Winning numbers 2" FROM lottery
+    UNION ALL
+    SELECT "Winning numbers 3" FROM lottery
+    UNION ALL
+    SELECT "Winning numbers 4" FROM lottery
+    UNION ALL
+    SELECT "Winning numbers 5" FROM lottery
+)
+SELECT number, COUNT(*) as occurrence
+FROM all_numbers
+GROUP BY number
+ORDER BY occurrence DESC
+LIMIT 10;
+
+/*Find most common model*/
+
+SELECT "Model", COUNT(*)
+FROM electricvehicle
+GROUP BY "Model"
+ORDER BY COUNT(*) DESC
+LIMIT 1;
+
+/*For each year, which car was the least common*/
+
+WITH RankedModels AS (SELECT "Model Year","Model", COUNT(*) AS "Model_Count",
+RANK() OVER (PARTITION BY "Model Year" ORDER BY COUNT(*) ASC) AS "Rank"
+FROM electricvehicle
+GROUP BY "Model Year", "Model")
+SELECT "Model Year","Model","Model_Count"
+FROM RankedModels
+WHERE "Rank" = 1;
+
+/*Which State had the most cars*/
+
+SELECT "State", COUNT(*) AS NumberOfCars
+FROM electricvehicle
+GROUP BY "State"
+ORDER BY NumberOfCars DESC
+LIMIT 1;
+
+--------------------------------------------------------------------------------------------
+
+CREATE TABLE location (
+    store INT PRIMARY KEY,  -- Unique store identifier
+    city VARCHAR(255),
+    zipcode VARCHAR(20),
+    county VARCHAR(255),
+    county_number NUMERIC(5),
+    store_location VARCHAR(255)
+);
+
+CREATE TABLE product_info (
+    itemno INT PRIMARY KEY,  -- Unique item number
+    category INT,
+    category_name VARCHAR(255),
+    vendor_no INT,
+    vendor_name VARCHAR(255),
+    im_desc VARCHAR(255)
+);
+
+
+CREATE TABLE invoice_details (
+    invoice_line_no VARCHAR(50) PRIMARY KEY,  -- Unique identifier for each invoice line
+    date TEXT,
+    store INT,  -- Foreign key referencing store in location table
+    name VARCHAR(255),
+    address VARCHAR(255),
+    FOREIGN KEY (store) REFERENCES location(store)  -- Link to store in location table
+);
+
+
+CREATE TABLE sales_info (
+    --sale_id SERIAL PRIMARY KEY,  -- Auto-increment primary key for each sale record
+    invoice_line_no VARCHAR(50),  -- Foreign key referencing invoice_details table
+    sale_bottles INT,
+    sale_dollars DECIMAL(10, 2),
+    sale_liters DECIMAL(10, 2),
+    sale_gallons DECIMAL(10, 2),
+    FOREIGN KEY (invoice_line_no) REFERENCES invoice_details(invoice_line_no)  -- Link to invoice_details table
+);
+
+CREATE TABLE pricing_info (
+    --pricing_id SERIAL PRIMARY KEY,  -- Auto-increment primary key for each pricing record
+    itemno INT,  -- Foreign key referencing product_info table
+    state_bottle_cost DECIMAL(10, 2),
+    state_bottle_retail DECIMAL(10, 2),
+    pack INT,
+    bottle_volume_ml DECIMAL(10, 2),
+    FOREIGN KEY (itemno) REFERENCES product_info(itemno)  -- Link to product_info table
+);
+
+select * from location;
+select * from product_info;
+select * from invoice_details;
+select * from pricing_info;
+select * from sales_info;
+
+
+--DATA CLEANING INVOICE_DETAILS---
+--1.making date formats uniform--
+
+UPDATE invoice_details
+SET date = 
+    TO_CHAR(
+        CASE 
+            -- If the date is in the format 'YYYY-MM-DD', convert it to 'YYYY-MM-DD'
+            WHEN date LIKE '____-__-__%' THEN TO_DATE(date, 'YYYY-MM-DD')
+            -- If the date is in the format 'YYYY/MM/DD', convert it to 'YYYY-MM-DD'
+            WHEN date LIKE '____/__/__%' THEN TO_DATE(date, 'YYYY/MM/DD')
+            -- If the date contains timestamp format like 'YYYY-MM-DD HH24:MI:SS'
+            WHEN date LIKE '____-__-__ __:__:__%' THEN TO_DATE(date, 'YYYY-MM-DD HH24:MI:SS')
+            -- If the date contains timestamp format like 'YYYY/MM/DD HH24:MI:SS'
+            WHEN date LIKE '____/__/__ __:__:__%' THEN TO_DATE(date, 'YYYY/MM/DD HH24:MI:SS')
+            ELSE NULL
+        END,
+       'YYYY-MM-DD');
+	   
+--2.replacing missing addresses with unknown--
+
+BEGIN;
+
+-- Your update, delete, or insert statement here
+UPDATE invoice_details
+SET address = 'Unknown'
+WHERE address IS NULL;
+
+-- Rollback to undo the changes
+--ROLLBACK;
+
+
+--DATA CLEANING LOCATION TABLE--
+--1.swapping values between city and zipcode--
+
+-- Start the transaction
+BEGIN;
+
+-- Update the table by swapping values where the city is numeric
+UPDATE location
+SET city = zipcode,
+    zipcode = city
+WHERE city ~ '^[0-9]+$';
+
+-- If you want to undo the changes, run:
+-- ROLLBACK;
+
+-- If you're satisfied with the changes, run:
+COMMIT;
+
+--DATA CLEANING PRICING_INFO TABLE--
+--1.Removing outlier value of -500 and replacing with 0--
+-- Start a transaction
+BEGIN;
+
+-- Update the outlier value
+UPDATE pricing_info
+SET state_bottle_cost = NULL
+WHERE state_bottle_cost = -500;
+
+-- If you need to undo the changes, use:
+ROLLBACK;
+
+-- If you want to commit the changes permanently, use:
+-- COMMIT;
+
+--2.Imputing nulls with mean of column--
+-- Start a transaction
+BEGIN;
+
+-- Update the state_bottle_cost column by replacing NULLs with the mean value
+UPDATE pricing_info
+SET state_bottle_cost = (
+    SELECT AVG(state_bottle_cost)
+    FROM pricing_info
+    WHERE state_bottle_cost IS NOT NULL
+)
+WHERE state_bottle_cost IS NULL;
+
+-- If you need to undo the changes, use:
+-- ROLLBACK;
+
+-- If you want to commit the changes permanently, use:
+COMMIT;
+
+--DATA CLEANING PRODUCT INFO--
+--1.Remove special character @@@ in vendor_name--
+-- Start a transaction
+BEGIN;
+
+-- Update the vendor_name column by replacing special characters with NULL
+UPDATE product_info
+SET vendor_name = NULL
+WHERE vendor_name ~ '[^a-zA-Z0-9\s]';  -- Matches any character that is not a letter, digit, or whitespace
+
+-- If you need to undo the changes, use:
+-- ROLLBACK;
+
+-- If you want to commit the changes permanently, use:
+COMMIT;
+
+--2.Capitalize vendor names that are in lowercase for consistency--
+-- Start a transaction
+BEGIN;
+
+-- Update the vendor_name to uppercase if it is entirely in lowercase
+UPDATE product_info
+SET vendor_name = UPPER(vendor_name)
+WHERE vendor_name = LOWER(vendor_name);
+
+-- If you need to undo the changes, use:
+-- ROLLBACK;
+
+-- If you want to commit the changes permanently, use:
+COMMIT;
+
+--DATA CLEANING SALES_INFO--
+--1.Removing outliers and replacing with null in sale_dollars--
+-- Start a transaction
+BEGIN;
+
+-- Update the sale_dollars column by replacing the outlier value 999999 with NULL
+UPDATE sales_info
+SET sale_dollars = NULL
+WHERE sale_dollars = 999999;
+
+-- If you need to undo the changes, use:
+-- ROLLBACK;
+
+-- If you want to commit the changes permanently, use:
+COMMIT;
+
+--2.Imputing the nulls with mean of column--
+-- Start a transaction
+BEGIN;
+
+-- Update the sale_dollars column by replacing NULLs with the mean value
+UPDATE sales_info
+SET sale_dollars = (
+    SELECT AVG(sale_dollars)
+    FROM sales_info
+    WHERE sale_dollars IS NOT NULL
+)
+WHERE sale_dollars IS NULL;
+
+-- If you need to undo the changes, use:
+-- ROLLBACK;
+
+-- If you want to commit the changes permanently, use:
+COMMIT;
+
+----------------------------------------------------------------------------------------------
+
+--Q1 Gender Analysis of Drivers Involved in Accidents, Problem: Understand if there is a gender disparity in drivers involved in crashes.--
+SELECT 
+    driver_sex, 
+    COUNT(*) AS total_drivers_involved
+FROM 
+    vehicles
+WHERE 
+    driver_sex IS NOT NULL
+GROUP BY 
+    driver_sex
+ORDER BY 
+    total_drivers_involved DESC;
+
+
+--Q2 Year-Wise Trends in Vehicle Accidents, Problem: Identify year-over-year trends in vehicle crashes for long-term analysis.
+SELECT 
+    EXTRACT(YEAR FROM crash_date) AS year, 
+    COUNT(*) AS total_crashes
+FROM 
+    crashes
+GROUP BY 
+    year
+ORDER BY 
+    year ASC;
+
+
+--Q3 Time of Day Analysis for Crashes, Problem: Identify the times of day with the highest crash occurrences to optimize law enforcement deployment.--
+SELECT 
+    DATE_PART('hour', crash_time) AS crash_hour, 
+    COUNT(*) AS total_crashes
+FROM 
+    crashes
+GROUP BY 
+    crash_hour
+ORDER BY 
+    crash_hour;
+
+
+--Q4 Age Group Analysis of Casualties, Problem: Identify which age groups are most vulnerable in accidents.--
+SELECT 
+    CASE 
+        WHEN person_age < 18 THEN 'Child'
+        WHEN person_age BETWEEN 18 AND 35 THEN 'Young Adult'
+        WHEN person_age BETWEEN 36 AND 60 THEN 'Adult'
+        ELSE 'Senior'
+    END AS age_group, 
+    COUNT(*) AS total_casualties
+FROM 
+    persons
+WHERE 
+    person_age IS NOT NULL
+GROUP BY 
+    age_group
+ORDER BY 
+    total_casualties DESC;
+
+
+--Q5 High-Incident Zip Codes, Identify zip codes with the most crashes to prioritize for traffic safety measures.----
+SELECT 
+    zip_code, 
+    COUNT(*) AS total_crashes
+FROM 
+    crashes
+WHERE 
+    zip_code IS NOT NULL
+GROUP BY 
+    zip_code
+ORDER BY 
+    total_crashes DESC
+LIMIT 10;
+
+--Q6 Crashes by Contributing Factors, Problem: This query identifies which factors contribute most to crashes and can guide safety initiatives to reduce accidents
+SELECT 
+    contributing_factor_vehicle_1 AS contributing_factor, 
+    COUNT(*) AS total_crashes
+FROM 
+    crashes
+WHERE 
+    contributing_factor_vehicle_1 IS NOT NULL
+GROUP BY 
+    contributing_factor_vehicle_1
+ORDER BY 
+    total_crashes DESC;
+
+--Q7 Crashes by Borough, Problem :This query provide insights into which boroughs require more attention for crash prevention and safety measures.
+SELECT 
+    borough, 
+    COUNT(*) AS total_crashes
+FROM 
+    crashes
+WHERE 
+    borough IS NOT NULL
+GROUP BY 
+    borough
+ORDER BY 
+    total_crashes DESC;
+
+----------------------------------------------------------------------------------------------------
